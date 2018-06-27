@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.cluster import KMeans
 import copy
 
 # default parameters for miTarget
@@ -57,8 +58,6 @@ def mi_target(data_bags, labels, parameters=default_parameters):
       P - double Mat - NxM matrix of abundances corresponding to M input
           pixels and N endmembers
     """
-    num_bags = data_bags.shape[0]
-    num_dim = data_bags.shape[2]
     num_pos_bags = np.sum(labels == parameters["posLabel"])
     data = data_bags if parameters["globalBackgroundFlag"] else data_bags[labels ==
                                                                           parameters["negLabel"]]
@@ -66,10 +65,6 @@ def mi_target(data_bags, labels, parameters=default_parameters):
     b_mu = np.mean(data, axis=0)
     b_cov = np.cov(data.T)
 
-    """
-    TODO: 
-    undo whitening
-    """
     # Whitening
     whitened_data, sig_inv_half, s, v = whiten_data(
         b_cov, data_bags, b_mu, parameters)
@@ -81,7 +76,6 @@ def mi_target(data_bags, labels, parameters=default_parameters):
     # Undo Whitening
     opt_target = undo_whitening(opt_target, s, v)
     init_t = undo_whitening(init_t, s, v)
-
     return opt_target, opt_obj_val, b_mu, sig_inv_half, init_t
 
 
@@ -126,9 +120,10 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
                 threshold_reached = True
                 print("stopped iterating at {} iterations".format(n_iter))
 
-        # Add current iteration's results to list
+        # Add current iteration's results to array
         np.append(objective_val, opt_obj_val)
         np.append(objective_val, opt_target)
+
     return opt_target, opt_obj_val, init_t
 
 
@@ -149,31 +144,135 @@ def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
     return whitened_data, sig_inv_half, s, v
 
 
-def eval_objective_whitened():
-    pass
+def eval_objective_whitened(pos_databags, neg_databags, target, softmax_flag):
+    num_dim = pos_databags.shape[2]
+    pos_conf_bags = np.zeros((pos_databags.shape[0], 1))
+    pos_conf_max = np.zeros((pos_databags.shape[0], num_dim))
+
+    for i, pos_data in enumerate(pos_databags):
+        pos_conf = np.sum(pos_data*target, axis=1)
+
+        if softmax_flag:
+            w = np.exp(pos_conf) / np.sum(np.exp(pos_conf))
+            pos_conf_bags[i] = np.sum(pos_conf * w)
+            pos_conf_max[i] = np.sum(w * pos_data, axis=0)
+        else:
+            idx = np.argmax(pos_conf)
+            max_conf = pos_conf[idx]
+
+            pos_conf_bags[i] = max_conf
+            pos_conf_max = pos_data[idx]
+
+    neg_conf_bags = np.zeros((neg_databags.shape[0], 1))
+
+    for i, neg_data in enumerate(neg_databags):
+        neg_conf = np.sum(neg_data*target, axis=1)
+        neg_conf_bags[i] = np.mean(neg_conf, axis=0)
+
+    obj_val = np.mean(pos_conf_bags, axis=0) - np.mean(neg_conf_bags, axis=0)
+    return obj_val, pos_conf_max
 
 
 def init_function(initType=1):
-    init_functions = [init1, init2, init3]
+    init_functions = [exhaustive_init, cosine_angle_init, kmeans_init]
     return init_functions[initType - 1]
 
 
-def init1(pos_databags, neg_databags, parameters):
-    pass
+def exhaustive_init(pos_databags, neg_databags, parameters):
+    n_bag, n_sample, _ = pos_databags.shape
+
+    # reshape so all data is in one batch
+    pos_data = flatten_databags(pos_databags)
+
+    # get random_samples
+    dataset_perm = np.random.permutation(n_bag*n_sample)
+    sample_pts = round(n_bag*n_sample*parameters['samplePor'])
+    pos_data_reduced = pos_data[dataset_perm[:sample_pts]]
+
+    temp_obj_val = np.zeros(pos_data_reduced.shape[0])
+    for i, opt_target in enumerate(pos_data_reduced):
+        temp_obj_val[i], _ = eval_objective_whitened(
+            pos_databags, neg_databags, opt_target, parameters['softmaxFlag'])
+
+    # optimal target
+    idx = np.argmax(temp_obj_val)
+    opt_target = pos_data_reduced[idx]
+    opt_target /= np.linalg.norm(opt_target)
+
+    init_t = opt_target
+
+    opt_obj_val, pos_bags_max = eval_objective_whitened(
+        pos_databags, neg_databags, opt_target, parameters['softmaxFlag'])
+
+    return init_t, opt_obj_val, pos_bags_max
 
 
-def init2(pos_databags, neg_databags, parameters):
-    pass
+def cosine_angle_init(pos_databags, neg_databags, parameters):
+    # smallest cosine vector angle
+    pos_data = flatten_databags(pos_databags)
+    neg_data = flatten_databags(neg_databags)
+    n_dim = pos_data.shape[1]
+
+    # make data orthonormal
+    pos_denom = np.sqrt(np.sum(pos_data * pos_data, axis=1))
+    neg_denom = np.sqrt(np.sum(neg_data * neg_data, axis=1))
+
+    pos_data /= pos_denom
+    neg_data /= neg_denom
+
+    neg_mean = np.mean(neg_data, axis=0)
+
+    temp_obj_val = np.sum(pos_data * neg_mean, axis=1)
+    idx = np.argmin(temp_obj_val)
+    opt_target = pos_data[idx]
+
+    opt_target /= np.linalg.norm(opt_target)
+    init_t = opt_target
+
+    opt_obj_val, pos_bags_max = eval_objective_whitened(
+        pos_databags, neg_databags, opt_target, parameters['softmaxFlag'])
+
+    return init_t, opt_obj_val, pos_bags_max
 
 
-def init3(pos_databags, neg_databags, parameters):
-    pass
+def kmeans_init(pos_databags, neg_databags, parameters):
+    # K-Means based initialization
+    pos_data = flatten_databags(pos_databags)
+
+    if 'C' in parameters
+        C = parameters['C']
+    else:
+        k_means = KMeans(n_clusters=min(
+            len(pos_data), parameters['initK']), max_iter=parameters['maxIter'])
+        C = k_means.fit(pos_data)
+
+    temp_obj_val = np.zeros(len(C))
+
+    # Loop through cluster centers
+    for i, centroid in enumerate(C):
+        opt_target = centroid / np.linalg.norm(centroid)
+        temp_obj_val[i] = eval_objective_whitened(
+            pos_databags, neg_databags, opt_target, parameters['softmaxFlag'])
+
+    idx = np.argmax(temp_obj_val)
+    opt_target = C[idx]
+    opt_target /= np.linalg.norm(opt_target)
+
+    init_t = opt_target
+    opt_obj_val, pos_bags_max = eval_objective_whitened(
+        pos_databags, neg_databags, opt_target, parameters['softmaxFlag'])
+
+    return init_t, opt_obj_val, pos_bags_max
+
+
+def flatten_databags(databags):
+    return np.reshape(databags, (databags.shape[0]*databags.shape[1], databags.shape[2]))
 
 
 def undo_whitening(whitened_data, s, v):
-    t = np.matmul(np.matmul(whiten_data, np.power(s, 0.5)), v.T)
+    t = np.matmul(whitened_data*np.power(s, 0.5), v.T)
     return t / np.linalg.norm(t)
 
 
 if __name__ == "__main__":
-    mi_target(np.random.random([5, 10, 20]), np.array([1, 0, 1, 0, 1]))
+    print(mi_target(np.random.random([5, 10, 20]), np.array([1, 0, 1, 0, 1])))
