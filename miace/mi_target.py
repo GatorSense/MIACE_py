@@ -239,7 +239,7 @@ def kmeans_init(pos_databags, neg_databags, parameters):
     # K-Means based initialization
     pos_data = flatten_databags(pos_databags)
 
-    if 'C' in parameters
+    if 'C' in parameters:
         C = parameters['C']
     else:
         k_means = KMeans(n_clusters=min(
