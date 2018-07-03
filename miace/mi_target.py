@@ -59,13 +59,16 @@ def mi_target(data_bags, labels, parameters=default_parameters):
           pixels and N endmembers
     """
     num_pos_bags = np.sum(labels == parameters["posLabel"])
-    data = data_bags if parameters["globalBackgroundFlag"] else data_bags[labels ==
-                                                                          parameters["negLabel"]]
+    negLabels = (labels == parameters["negLabel"])
+    negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
+
+    data = data_bags if parameters["globalBackgroundFlag"] else data_bags[negLabels]
     data = data.reshape((data.shape[0]*data.shape[1], data.shape[2]))
     b_mu = np.mean(data, axis=0)
     b_cov = np.cov(data.T)
 
     # Whitening
+    print('Whitening...')
     whitened_data, sig_inv_half, s, v = whiten_data(
         b_cov, data_bags, b_mu, parameters)
 
@@ -80,9 +83,15 @@ def mi_target(data_bags, labels, parameters=default_parameters):
 
 
 def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
-    pos_databags = whitened_data[labels == parameters['posLabel']]
-    neg_databags = whitened_data[labels == parameters['negLabel']]
+    posLabels = (labels == parameters["posLabel"])
+    posLabels = np.reshape(posLabels, newshape=(posLabels.shape[1]))
+    negLabels = (labels == parameters["negLabel"])
+    negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
 
+    pos_databags = whitened_data[posLabels]
+    neg_databags = whitened_data[negLabels]
+
+    print('Initializing...')
     init = init_function(parameters['initType'])
 
     init_t, opt_obj_val, pos_bags_max = init(
@@ -90,19 +99,24 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
 
     opt_target = copy.deepcopy(init_t)
 
+    # from IPython import embed
+    # embed()
     n_mean = np.mean(
         [np.mean(neg_databags[i], axis=0).T for i in range(len(neg_databags))], axis=0)
 
     # Optimizing
+    print('Optimizing...')
     n_iter = 1
     threshold_reached = False
 
     objective_val = np.array([opt_obj_val])
     objective_target = np.array([opt_target])
+
     while (not threshold_reached and n_iter < parameters['maxIter']):
         n_iter += 1
         p_mean = np.mean(
             pos_bags_max, axis=0) if num_pos_bags > 1 else pos_bags_max
+
         t = p_mean - n_mean
         opt_target = t / np.linalg.norm(t)
 
@@ -129,7 +143,8 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
 
 def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
     u, s, v = np.linalg.svd(b_cov)
-    sig_inv_half = (1.0 / np.sqrt(s)) * np.identity(len(s)) * u.T
+    s_neg_sqrt = (1.0 / np.sqrt(s)) * np.eye(s.shape[0])
+    sig_inv_half = np.matmul(s_neg_sqrt, u.T)
     m_minus = data_bags - b_mu
     m_scale = np.matmul(m_minus, sig_inv_half.T)
 
@@ -161,7 +176,7 @@ def eval_objective_whitened(pos_databags, neg_databags, target, softmax_flag):
             max_conf = pos_conf[idx]
 
             pos_conf_bags[i] = max_conf
-            pos_conf_max = pos_data[idx]
+            pos_conf_max[i] = pos_data[idx]
 
     neg_conf_bags = np.zeros((neg_databags.shape[0], 1))
 
@@ -175,10 +190,15 @@ def eval_objective_whitened(pos_databags, neg_databags, target, softmax_flag):
 
 def init_function(initType=1):
     init_functions = [exhaustive_init, cosine_angle_init, kmeans_init]
+    if initType > len(init_functions):
+        raise ValueError("Please provide a value between 1 and 3 for initType")
     return init_functions[initType - 1]
 
 
 def exhaustive_init(pos_databags, neg_databags, parameters):
+    # exhaustive search initialization
+    # init1
+
     n_bag, n_sample, _ = pos_databags.shape
 
     # reshape so all data is in one batch
@@ -196,6 +216,7 @@ def exhaustive_init(pos_databags, neg_databags, parameters):
 
     # optimal target
     idx = np.argmax(temp_obj_val)
+
     opt_target = pos_data_reduced[idx]
     opt_target /= np.linalg.norm(opt_target)
 
@@ -208,7 +229,8 @@ def exhaustive_init(pos_databags, neg_databags, parameters):
 
 
 def cosine_angle_init(pos_databags, neg_databags, parameters):
-    # smallest cosine vector angle
+    # smallest cosine vector angle initialization
+    # init2
     pos_data = flatten_databags(pos_databags)
     neg_data = flatten_databags(neg_databags)
     n_dim = pos_data.shape[1]
@@ -236,6 +258,7 @@ def cosine_angle_init(pos_databags, neg_databags, parameters):
 
 
 def kmeans_init(pos_databags, neg_databags, parameters):
+    # init3
     # K-Means based initialization
     pos_data = flatten_databags(pos_databags)
 
@@ -270,9 +293,6 @@ def flatten_databags(databags):
 
 
 def undo_whitening(whitened_data, s, v):
-    t = np.matmul(whitened_data*np.power(s, 0.5), v.T)
+    s_sqrt = np.sqrt(s)*np.eye(s.shape[0])
+    t = np.matmul(np.matmul(whitened_data, s_sqrt), v)
     return t / np.linalg.norm(t)
-
-
-if __name__ == "__main__":
-    print(mi_target(np.random.random([5, 10, 20]), np.array([1, 0, 1, 0, 1])))
