@@ -5,8 +5,14 @@ name = "pypi"
 
 [packages]
 numpy = "*"
+scipy = "*"
+scikit-learn = "*"
+matplotlib = "*"
 
 [dev-packages]
+pytest = "*"
+ipython = "*"
+"autopep8" = "*"
 
 [requires]
 python_version = "3.6"
