@@ -30,7 +30,7 @@ print('Detecting SMF...')
 smf_data, _, _ = smf_det(example_data['x_test'], smf_opt_target.T,
                          b_mu, np.matmul(sig_inv_half.T, sig_inv_half))
 
-# SMF init1
+# ACE init 1
 parameters['methodFlag'] = True
 parameters['samplePor'] = 1
 
@@ -41,6 +41,7 @@ print('Detecting ACE...')
 ace_data, _, _ = ace_det(example_data['x_test'], ace_opt_target.T,
                          b_mu, np.matmul(sig_inv_half.T, sig_inv_half))
 
+# Get false and true positive rate
 labels_point_test = example_data['labels_point_test']
 
 smf_fpr, smf_tpr, smf_threshold = roc_curve(
@@ -68,4 +69,5 @@ ax2.set_ylabel('Probability of Detection')
 ax2.set_xlim([0, 1])
 ax2.set_ylim([0, 1])
 
+plt.tight_layout()
 plt.show()

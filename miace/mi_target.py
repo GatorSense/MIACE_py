@@ -23,7 +23,7 @@ default_parameters = {
     # If using init3, number of clusters used to initialize (default = 1000)
     "initK": 1000,
     # Number of background clusters (and optimal targets) to be estimated
-    "numB": 5
+    "numB": 5 # is this used anywhere?
 }
 
 
@@ -33,11 +33,11 @@ def mi_target(data_bags, labels, parameters=default_parameters):
         Spectral Matched Filter Demo
 
     Inputs:
-      data_bags - 1xB cell array where each cell contains an NxD matrix of N data points of
-          dimensionality D (i.e.  N pixels with D spectral bands, each pixel is
-          a row vector).  Total of B cells.
-      labels - 1XB array containing the bag level labels corresponding to
-          each cell of the dataBags cell array
+      data_bags - 1xB cell array where each cell contains an NxD matrix of N data points of dimensionality D
+      (i.e.  N pixels with D spectral bands, each pixel is a row vector).  Total of B cells.
+
+      labels - 1XB array containing the bag level labels corresponding to each cell of the dataBags cell array
+
       parameters - struct - The struct contains the following fields:
         1. parameters.methodFlag: Set to 0 for MI-SMF, Set to 1 for MI-ACE
         2. parameters.initType: Options are 1, 2, or 3.
@@ -53,11 +53,13 @@ def mi_target(data_bags, labels, parameters=default_parameters):
         8. parameters.samplePor: If using init1, percentage of positive data points used to initialize (default = 1)
         9. parameters.initK = 1000; % If using init3, number of clusters used to initialize (default = 1000);
     Outputs:
-      endmembers - double Mat - NxM matrix of M endmembers with N spectral
-          bands
-      P - double Mat - NxM matrix of abundances corresponding to M input
-          pixels and N endmembers
+      opt_target - estimated target concept
+      opt_obj_val -  Final Objective Function value
+      b_mu - Background Mean to be used in ACE or SMF detector with test data
+      sig_inv_half - Square root of background covariance, Use sig_inv_half'*sig_inv_half as covariance in ACE or SMF detector with test data
+      init_t - initial target concept
     """
+    print(data_bags.shape)
     num_pos_bags = np.sum(labels == parameters["posLabel"])
     negLabels = (labels == parameters["negLabel"])
     negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
