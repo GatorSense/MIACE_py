@@ -143,24 +143,6 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
     return opt_target, opt_obj_val, init_t
 
 
-def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
-    u, s, v = np.linalg.svd(b_cov)
-    s_neg_sqrt = (1.0 / np.sqrt(s)) * np.eye(s.shape[0])
-    sig_inv_half = np.matmul(s_neg_sqrt, u.T)
-    m_minus = data_bags - b_mu
-    m_scale = np.matmul(m_minus, sig_inv_half.T)
-
-    if parameters['methodFlag']:
-        denom = np.array([np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1))
-                          for i in range(m_scale.shape[0])])
-        denom = np.reshape(denom, (denom.shape[0], denom.shape[1], 1))
-    else:
-        denom = 1.0
-
-    whitened_data = np.divide(m_scale, denom)
-    return whitened_data, sig_inv_half, s, v
-
-
 def eval_objective_whitened(pos_databags, neg_databags, target, softmax_flag):
     num_dim = pos_databags.shape[2]
     pos_conf_bags = np.zeros((pos_databags.shape[0], 1))
@@ -292,6 +274,24 @@ def kmeans_init(pos_databags, neg_databags, parameters):
 
 def flatten_databags(databags):
     return np.reshape(databags, (databags.shape[0]*databags.shape[1], databags.shape[2]))
+
+
+def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
+    u, s, v = np.linalg.svd(b_cov)
+    s_neg_sqrt = (1.0 / np.sqrt(s)) * np.eye(s.shape[0])
+    sig_inv_half = np.matmul(s_neg_sqrt, u.T)
+    m_minus = data_bags - b_mu
+    m_scale = np.matmul(m_minus, sig_inv_half.T)
+
+    if parameters['methodFlag']:
+        denom = np.array([np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1))
+                          for i in range(m_scale.shape[0])])
+        denom = np.reshape(denom, (denom.shape[0], denom.shape[1], 1))
+    else:
+        denom = 1.0
+
+    whitened_data = np.divide(m_scale, denom)
+    return whitened_data, sig_inv_half, s, v
 
 
 def undo_whitening(whitened_data, s, v):
