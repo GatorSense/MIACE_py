@@ -20,7 +20,7 @@ def smf_det(hsi_data, tgt_sig, mu=None, sig_inv=None, tgt_flag=False):
       sig_inv - DxD matrix containing the inverse background covariance
     """
     # print(hsi_data.shape, tgt_sig.shape, mu.shape, sig_inv.shape)
-    z, st_sig_inv, st_sig_inv_s, sig_inv = detector_helper(
+    z, st_sig_inv, st_sig_inv_s, mu, sig_inv = detector_helper(
         hsi_data, tgt_sig, mu, sig_inv, tgt_flag)
 
     # Matrix multiplication
@@ -52,7 +52,7 @@ def ace_det(hsi_data, tgt_sig, mu=None, sig_inv=None, tgt_flag=False):
       sig_inv - DxD matrix containing the inverse background covariance
     """
 
-    z, st_sig_inv, st_sig_inv_s, sig_inv = detector_helper(
+    z, st_sig_inv, st_sig_inv_s, mu, sig_inv = detector_helper(
         hsi_data, tgt_sig, mu, sig_inv, tgt_flag)
 
     A = np.matmul(st_sig_inv, z)
@@ -79,4 +79,4 @@ def detector_helper(hsi_data, tgt_sig, mu=None, sig_inv=None, tgt_flag=False):
     st_sig_inv = np.matmul(s.T, sig_inv)
     st_sig_inv_s = np.matmul(st_sig_inv, s)
 
-    return z, st_sig_inv, st_sig_inv_s, sig_inv
+    return z, st_sig_inv, st_sig_inv_s, mu, sig_inv
