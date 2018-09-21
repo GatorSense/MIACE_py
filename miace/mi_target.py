@@ -8,7 +8,13 @@ default_parameters = {
     "methodFlag": True,
     # Set to 1 to use global mean and covariance, set to 0 to use negative bag mean and covariance
     "globalBackgroundFlag": False,
-    # Options: 1, 2, or 3.  InitType 1 is to use best positive instance based on objective function value, type 2 is to select positive instance with smallest cosine similarity with negative instance mean, type 3 clusters the data with k-means and selects the best cluster center as the initial target signature
+
+    #Options: 1,2,3
+    '''
+    Type 1 is to use best positive instance based on objective function value,
+    Type 2 is to select positive instance with smallest cosine similarity with negative instance mean,
+    Type 3 clusters the data with k-means and selects the best cluster center as the initial target signature
+    '''
     "initType": 1,
     # Set to 0 to use max, set to 1 to use softmax in computation of objective function values of positive bags
     "softmaxFlag": False,
@@ -144,15 +150,16 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
 
 
 def eval_objective_whitened(pos_databags, neg_databags, target, softmax_flag):
-    num_dim = pos_databags.shape[2]
+    num_dim = pos_databags[0].shape[1] #number of bands
+
     pos_conf_bags = np.zeros((pos_databags.shape[0], 1))
     pos_conf_max = np.zeros((pos_databags.shape[0], num_dim))
 
     for i, pos_data in enumerate(pos_databags):
-        pos_conf = np.sum(pos_data*target, axis=1)
-
+        pos_conf = np.sum(pos_data*target, axis=1) #(10,)
         if softmax_flag:
             w = np.exp(pos_conf) / np.sum(np.exp(pos_conf))
+            # w = np.reshape(w, (w.shape[0],1))
             pos_conf_bags[i] = np.sum(pos_conf * w)
             pos_conf_max[i] = np.sum(w * pos_data, axis=0)
         else:
@@ -183,14 +190,14 @@ def exhaustive_init(pos_databags, neg_databags, parameters):
     # exhaustive search initialization
     # init1
 
-    n_bag, n_sample, _ = pos_databags.shape
+    total_sample = np.sum([pos_databags[bag].shape[0] for bag in range(pos_databags.shape[0])])
 
     # reshape so all data is in one batch
     pos_data = flatten_databags(pos_databags)
 
     # get random_samples
-    dataset_perm = np.random.permutation(n_bag*n_sample)
-    sample_pts = round(n_bag*n_sample*parameters['samplePor'])
+    dataset_perm = np.random.permutation(total_sample)
+    sample_pts = round(total_sample*parameters['samplePor'])
     pos_data_reduced = pos_data[dataset_perm[:sample_pts]]
 
     temp_obj_val = np.zeros(pos_data_reduced.shape[0])
@@ -273,7 +280,7 @@ def kmeans_init(pos_databags, neg_databags, parameters):
 
 
 def flatten_databags(databags):
-    return np.reshape(databags, (databags.shape[0]*databags.shape[1], databags.shape[2]))
+    return np.vstack([databags[bag] for bag in range(databags.shape[0])])
 
 
 def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
@@ -282,22 +289,18 @@ def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
     sig_inv_half = np.matmul(s_neg_sqrt, u.T)
     m_minus = np.asarray([data_bags[bag] - b_mu for bag in range(data_bags.shape[0])])
     m_scale = np.asarray([np.matmul(m_minus[bag], sig_inv_half.T) for bag in range(data_bags.shape[0])])
-    print(f'm_minus: {m_minus.shape}')
-    print(f'm_scale: {m_scale.shape}')
 
     if parameters['methodFlag']:
         denom = [np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1)) for i in range(m_scale.shape[0])]
-
         denom = np.array([np.reshape(denom[bag], (denom[bag].shape[0], 1)) for bag in range(m_scale.shape[0])])
         print(f'denom after: {denom[0].shape}')
+        whitened_data = np.asarray([np.divide(m_scale[bag], denom[bag]) for bag in range(data_bags.shape[0])])
 
     else:
         denom = 1.0
+        whitened_data = np.divide(m_scale, denom)
 
-    whitened_data = np.asarray([np.divide(m_scale[bag], denom) for bag in range(data_bags.shape[0])])
-    print('white: ', np.mean(np.vstack(whitened_data[:])), whitened_data.shape)
-
-    # whitened_data = np.divide(m_scale, denom)
+    # print('white: ', np.mean(np.vstack(whitened_data[:])), whitened_data.shape)
     # print(f'white: {np.mean(whitened_data)}, {whitened_data.shape}')
 
     return whitened_data, sig_inv_half, s, v
