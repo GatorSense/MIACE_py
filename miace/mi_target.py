@@ -59,14 +59,14 @@ def mi_target(data_bags, labels, parameters=default_parameters):
       sig_inv_half - Square root of background covariance, Use sig_inv_half'*sig_inv_half as covariance in ACE or SMF detector with test data
       init_t - initial target concept
     """
-    print(data_bags.shape)
+    print(f'Data bags shape: {data_bags.shape}\nLabels shape: {labels.shape}') # data bag shape is bag x pixel x bands, label is 1 x bag
     num_pos_bags = np.sum(labels == parameters["posLabel"])
     negLabels = (labels == parameters["negLabel"])
     negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
 
     data = data_bags if parameters["globalBackgroundFlag"] else data_bags[negLabels]
-    data = data.reshape((data.shape[0]*data.shape[1], data.shape[2]))
-    b_mu = np.mean(data, axis=0)
+    data = np.vstack([data[i] for i in range(data.shape[0])])
+    b_mu = np.mean(data, axis=0) # this is the mean of pixels for a given band, (D,)
     b_cov = np.cov(data.T)
 
     # Whitening
@@ -280,17 +280,26 @@ def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
     u, s, v = np.linalg.svd(b_cov)
     s_neg_sqrt = (1.0 / np.sqrt(s)) * np.eye(s.shape[0])
     sig_inv_half = np.matmul(s_neg_sqrt, u.T)
-    m_minus = data_bags - b_mu
-    m_scale = np.matmul(m_minus, sig_inv_half.T)
+    m_minus = np.asarray([data_bags[bag] - b_mu for bag in range(data_bags.shape[0])])
+    m_scale = np.asarray([np.matmul(m_minus[bag], sig_inv_half.T) for bag in range(data_bags.shape[0])])
+    print(f'm_minus: {m_minus.shape}')
+    print(f'm_scale: {m_scale.shape}')
 
     if parameters['methodFlag']:
-        denom = np.array([np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1))
-                          for i in range(m_scale.shape[0])])
-        denom = np.reshape(denom, (denom.shape[0], denom.shape[1], 1))
+        denom = [np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1)) for i in range(m_scale.shape[0])]
+
+        denom = np.array([np.reshape(denom[bag], (denom[bag].shape[0], 1)) for bag in range(m_scale.shape[0])])
+        print(f'denom after: {denom[0].shape}')
+
     else:
         denom = 1.0
 
-    whitened_data = np.divide(m_scale, denom)
+    whitened_data = np.asarray([np.divide(m_scale[bag], denom) for bag in range(data_bags.shape[0])])
+    print('white: ', np.mean(np.vstack(whitened_data[:])), whitened_data.shape)
+
+    # whitened_data = np.divide(m_scale, denom)
+    # print(f'white: {np.mean(whitened_data)}, {whitened_data.shape}')
+
     return whitened_data, sig_inv_half, s, v
 
 

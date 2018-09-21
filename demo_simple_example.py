@@ -19,23 +19,38 @@ parameters = {
 
 example_data = np.load('datasets/simple_example_data.npz')
 
+# to accomodate bags of difference sizes
+bag_list = [example_data['data_bags'][i] for i in range(example_data['data_bags'].shape[0])]
+
+#to test whether the methods work on different sizes. combining a few bags together to create uneven bags
+bag_list[0] = np.vstack((bag_list[0], bag_list[1]))
+bag_list.pop(1)
+labels = np.delete(example_data['labels'], 1, 1)
+
 # SMF init1
 parameters['methodFlag'] = False
 parameters['samplePor'] = 1
 
+# smf_opt_target, _, b_mu, sig_inv_half, _ = mi_target(
+#     example_data['data_bags'], example_data['labels'], parameters)
+
 smf_opt_target, _, b_mu, sig_inv_half, _ = mi_target(
-    example_data['data_bags'], example_data['labels'], parameters)
+    np.asarray(bag_list), labels, parameters)
 
 print('Detecting SMF...')
 smf_data, _, _ = smf_det(example_data['x_test'], smf_opt_target.T,
                          b_mu, np.matmul(sig_inv_half.T, sig_inv_half))
 
+print('------------Method 2-------------')
 # ACE init 1
 parameters['methodFlag'] = True
 parameters['samplePor'] = 1
 
+# ace_opt_target, _, b_mu, sig_inv_half, _ = mi_target(
+#     example_data['data_bags'], example_data['labels'], parameters)
+
 ace_opt_target, _, b_mu, sig_inv_half, _ = mi_target(
-    example_data['data_bags'], example_data['labels'], parameters)
+    np.asarray(bag_list), labels, parameters)
 
 print('Detecting ACE...')
 ace_data, _, _ = ace_det(example_data['x_test'], ace_opt_target.T,
