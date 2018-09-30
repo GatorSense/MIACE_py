@@ -9,11 +9,11 @@ results = {'smf': {}, 'ace': {}}
 
 parameters = {
     "globalBackgroundFlag": False,
-    "softmaxFlag": False,
     "posLabel": 1,
     "negLabel": 0,
     "maxIter": 100,
-    "initType": 1
+    "initType": 2,
+	"initK": 1000
 }
 
 
