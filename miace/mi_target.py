@@ -2,34 +2,32 @@ import numpy as np
 from sklearn.cluster import KMeans
 import copy
 
-# default parameters for miTarget
+# default parameters for mi_target
 default_parameters = {
-    # Set to 0 for MI-SMF, Set to 1 for MI-ACE
-    "methodFlag": True,
-    # Set to 1 to use global mean and covariance, set to 0 to use negative bag mean and covariance
-    "globalBackgroundFlag": False,
-    #Type 1 is to use best positive instance based on objective function value,
-    #Type 2 clusters the data with k-means and selects the best cluster center as the initial target signature
-    "initType": 1,
+    # Set to True for MI-ACE, Set to False for MI-SMF
+    "method_flag": True,
+    # Set to True to use global mean and covariance, set to False to use negative bag mean and covariance
+    "global_background_flag": False,
+    # Type 1 is to use best positive instance based on objective function value
+    # Type 2 clusters the data with k-means and selects the best cluster center as the initial target signature
+    "init_type": 1,
     # Value used to indicate positive bags, usually 1
-    "posLabel": 1,
+    "pos_label": 1,
     # Value used to indicate negative bags, usually 0 or -1
-    "negLabel": 0,
+    "neg_label": 0,
     # Maximum number of iterations (rarely used)
-    "maxIter": 1000,
+    "max_iter": 1000,
     # Percentage of positive data points used to initialize (default = 1)
-    "samplePor": 1,
-    # If using init3, number of clusters used to initialize (default = 1000)
-    "initK": 1000,
-    # Number of background clusters (and optimal targets) to be estimated
-    "numB": 5 # is this used anywhere?
+    "sample_por": 1,
+    # If using init2, number of clusters used to initialize (default = 1000)
+    "init_k": 1000,
 }
 
 
 def mi_target(data_bags, labels, parameters=default_parameters):
     """
-    MIACE/MISMF Multiple Instance Adaptive Cosine Estimator/Multiple Instance
-        Spectral Matched Filter Demo
+    MIACE: Multiple Instance Adaptive Cosine Estimator
+	MISMF: Multiple Instance Spectral Matched Filter Demo
 
     Inputs:
       data_bags - 1xB cell array where each cell contains an NxD matrix of N data points of dimensionality D
@@ -37,29 +35,22 @@ def mi_target(data_bags, labels, parameters=default_parameters):
 
       labels - 1XB array containing the bag level labels corresponding to each cell of the dataBags cell array
 
-      parameters - struct - The struct contains the following fields:
-        1. parameters.methodFlag: Set to 0 for MI-SMF, Set to 1 for MI-ACE
-        2. parameters.initType: Options are 1 or 2
-        3. parameters.globalBackgroundFlag: set to 1 to use global mean and covariance, set to 0 to use negative bag mean and covariance
-        4. parameters.posLabel: Value used to indicate positive
-        bags, usually 1
-        5. parameters.negLabel: Value used to indicate negative bags, usually 0 or -1
-        6. parameters.maxIter: Maximum number of iterations (rarely used)
-        7. parameters.samplePor: If using init1, percentage of positive data points used to initialize (default = 1)
-        8. parameters.initK = 1000; % If using init3, number of clusters used to initialize (default = 1000);
-    Outputs:
+      parameters - dictionary containing function parameters (see README):
+
+	Outputs:
       opt_target - estimated target concept
       opt_obj_val -  Final Objective Function value
       b_mu - Background Mean to be used in ACE or SMF detector with test data
-      sig_inv_half - Square root of background covariance, Use sig_inv_half'*sig_inv_half as covariance in ACE or SMF detector with test data
+      sig_inv_half - Square root of background covariance, Use sig_inv_half.T @ sig_inv_half as covariance in ACE or SMF detector with test data
       init_t - initial target concept
     """
-    # print(f'Data bags shape: {data_bags.shape}\nLabels shape: {labels.shape}') # data bag shape is bag x pixel x bands, label is 1 x bag
-    num_pos_bags = np.sum(labels == parameters["posLabel"])
-    negLabels = (labels == parameters["negLabel"])
-    negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
 
-    data = data_bags if parameters["globalBackgroundFlag"] else data_bags[negLabels]
+    # print(f'Data bags shape: {data_bags.shape}\nLabels shape: {labels.shape}, {type(data_bags)}') # data bag shape is bag x pixel x bands, label is 1 x bag
+    num_pos_bags = np.sum(labels == parameters["pos_label"])
+    neg_labels = (labels == parameters["neg_label"])
+    neg_labels = np.reshape(neg_labels, newshape=(neg_labels.shape[1]))
+
+    data = data_bags if parameters["global_background_flag"] else data_bags[neg_labels]
     data = np.vstack([data[i] for i in range(data.shape[0])])
     b_mu = np.mean(data, axis=0) # this is the mean of pixels for a given band, (D,)
     b_cov = np.cov(data.T)
@@ -80,15 +71,15 @@ def mi_target(data_bags, labels, parameters=default_parameters):
 
 
 def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
-    posLabels = (labels == parameters["posLabel"])
-    posLabels = np.reshape(posLabels, newshape=(posLabels.shape[1]))
-    negLabels = (labels == parameters["negLabel"])
-    negLabels = np.reshape(negLabels, newshape=(negLabels.shape[1]))
+    pos_labels = (labels == parameters["pos_label"])
+    pos_labels = np.reshape(pos_labels, newshape=(pos_labels.shape[1]))
+    neg_labels = (labels == parameters["neg_label"])
+    neg_labels = np.reshape(neg_labels, newshape=(neg_labels.shape[1]))
 
-    pos_databags = whitened_data[posLabels]
-    neg_databags = whitened_data[negLabels]
+    pos_databags = whitened_data[pos_labels]
+    neg_databags = whitened_data[neg_labels]
 
-    init = init_function(parameters['initType'])
+    init = init_function(parameters['init_type'])
     print(f'Initializing with {init.__name__}...')
 
     init_t, opt_obj_val, pos_bags_max = init(
@@ -98,8 +89,7 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
 
     # from IPython import embed
     # embed()
-    n_mean = np.mean(
-        [np.mean(neg_databags[i], axis=0).T for i in range(len(neg_databags))], axis=0)
+    n_mean = np.mean([np.mean(neg_databags[i], axis=0).T for i in range(len(neg_databags))], axis=0)
 
     # Optimizing
     print('Optimizing...')
@@ -109,7 +99,7 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
     objective_val = np.array([opt_obj_val])
     objective_target = np.array([opt_target])
 
-    while (not threshold_reached and n_iter < parameters['maxIter']):
+    while (not threshold_reached and n_iter < parameters['max_iter']):
         n_iter += 1
         p_mean = np.mean(
             pos_bags_max, axis=0) if num_pos_bags > 1 else pos_bags_max
@@ -118,8 +108,7 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
         opt_target = t / np.linalg.norm(t)
 
         # Update Objective and Determine the max points in each bag
-        opt_obj_val, pos_bags_max = eval_objective_whitened(
-            pos_databags, neg_databags, opt_target)
+        opt_obj_val, pos_bags_max = eval_objective_whitened(pos_databags, neg_databags, opt_target)
 
         # see if objective value has been reached
         if np.any(objective_val == opt_obj_val):
@@ -162,17 +151,15 @@ def eval_objective_whitened(pos_databags, neg_databags, target):
     return obj_val, pos_conf_max
 
 
-def init_function(initType=1):
+def init_function(init_type=1):
     init_functions = [exhaustive_init, kmeans_init]
-    if initType > len(init_functions):
-        raise ValueError("Please provide a value of 1 or 2 for initType")
-    return init_functions[initType - 1]
+    if init_type > len(init_functions):
+        raise ValueError("Please provide a value of 1 or 2 for init_type")
+    return init_functions[init_type - 1]
 
 
 def exhaustive_init(pos_databags, neg_databags, parameters):
-    # exhaustive search initialization
-    # init1
-
+    # Type 1 init: exhaustive search initialization
     total_sample = np.sum([pos_databags[bag].shape[0] for bag in range(pos_databags.shape[0])])
 
     # reshape so all data is in one batch
@@ -180,7 +167,7 @@ def exhaustive_init(pos_databags, neg_databags, parameters):
 
     # get random_samples
     dataset_perm = np.random.permutation(total_sample)
-    sample_pts = round(total_sample*parameters['samplePor'])
+    sample_pts = round(total_sample*parameters['sample_por'])
     pos_data_reduced = pos_data[dataset_perm[:sample_pts]]
 
     temp_obj_val = np.zeros(pos_data_reduced.shape[0])
@@ -203,14 +190,13 @@ def exhaustive_init(pos_databags, neg_databags, parameters):
 
 
 def kmeans_init(pos_databags, neg_databags, parameters):
-    # init3
-    # K-Means based initialization
+    # Type 2 init: K-Means based initialization
     pos_data = flatten_databags(pos_databags)
 
     if 'C' in parameters:
         C = parameters['C']
     else:
-        k_means = KMeans(n_clusters=min(len(pos_data), parameters['initK']), max_iter=parameters['maxIter'])
+        k_means = KMeans(n_clusters=min(len(pos_data), parameters['init_k']), max_iter=parameters['max_iter'])
         C = k_means.fit(pos_data)
 
     temp_obj_val = [None] * len(C.labels_)
@@ -242,10 +228,9 @@ def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
     m_minus = np.asarray([data_bags[bag] - b_mu for bag in range(data_bags.shape[0])])
     m_scale = np.asarray([np.matmul(m_minus[bag], sig_inv_half.T) for bag in range(data_bags.shape[0])])
 
-    if parameters['methodFlag']:
+    if parameters['method_flag']:
         denom = [np.sqrt(np.sum(m_scale[i]*m_scale[i], axis=1)) for i in range(m_scale.shape[0])]
         denom = np.array([np.reshape(denom[bag], (denom[bag].shape[0], 1)) for bag in range(m_scale.shape[0])])
-        # print(f'denom after: {denom[0].shape}')
         whitened_data = np.asarray([np.divide(m_scale[bag], denom[bag]) for bag in range(data_bags.shape[0])])
 
     else:
