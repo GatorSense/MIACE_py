@@ -2,20 +2,23 @@
 Python Implementation of MI-ACE and MI-SMF Target Characterization Algorithms
 
 NOTE: If MI-ACE or MI-SMF Algorithms are used in any publication or presentation, the following reference must be cited:
-A. Zare, C. Jiao, T. Glenn, "Multiple Instance Hyperspectral Target Characterization," IEEE Trans. on Pattern Analysis and Machine Intelligence, To Appear.
+A. Zare, C. Jiao and T. Glenn, "Discriminative Multiple Instance Hyperspectral Target Characterization," in IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 40, no. 10, pp. 2342-2354, 1 Oct. 2018.
+doi: 10.1109/TPAMI.2017.2756632
+
+NOTE: If this code is used in any publication or presentation, the following reference must be cited: 
+
 
 Python Implementation by:
-
 7/2018 - John Henning
-
 10/2018 - Yutai Zhou
+
 
 The function to run either MI-SMF or MI-ACE:
 
 opt_target, opt_obj_val, b_mu, sig_inv_half, init_t = mi_target(data_bags, labels, parameters)
 
 Inputs:
-- data_bags - cell array where each cell is a bag containing a NxD matrix of instances where N is the number of instances in the bag and D is the dimensionality of each instance
+- data_bags - list where each element is a bag containing a NxD array of instances where N is the number of instances in the bag and D is the dimensionality of each instance
 - labels - binary values, the same length as dataBags, indicates positive bag with '1' and negative bags with '0'
 - parameters - parameters dictionary containing the following:
 	- method_flag: Set to True for MI-ACE, Set to False for MI-SMF
