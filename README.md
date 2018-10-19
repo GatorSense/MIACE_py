@@ -6,6 +6,7 @@ A. Zare, C. Jiao and T. Glenn, "Discriminative Multiple Instance Hyperspectral T
 doi: 10.1109/TPAMI.2017.2756632
 
 NOTE: If this code is used in any publication or presentation, the following reference must be cited: 
+Yutai Zhou, John Henning, Alina Zare, Changzhe Jiao, & Taylor Glenn. (2018, October 19). GatorSense/MIACE_py: Initial release of MIACE in python (Version v1.0). Zenodo. http://doi.org/10.5281/zenodo.1467393
 [![DOI](https://zenodo.org/badge/135312072.svg)](https://zenodo.org/badge/latestdoi/135312072)
 
 Python Implementation by:
