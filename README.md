@@ -19,7 +19,7 @@ opt_target, opt_obj_val, b_mu, sig_inv_half, init_t = mi_target(data_bags, label
 
 Inputs:
 - data_bags - list where each element is a bag containing a NxD array of instances where N is the number of instances in the bag and D is the dimensionality of each instance
-- labels - binary values, the same length as dataBags, indicates positive bag with '1' and negative bags with '0'
+- labels - binary values, the same length as dataBags, indicates positive bag with pos_label and negative bags with neg_label (see below)
 - parameters - parameters dictionary containing the following:
 	- method_flag: Set to True for MI-ACE, Set to False for MI-SMF
 	- global_background_flag: Set to True to use global mean and covariance, set to False to use negative bag mean and covariance
