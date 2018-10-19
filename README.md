@@ -4,6 +4,10 @@ Python Implementation of MI-ACE and MI-SMF Target Characterization Algorithms
 NOTE: If MI-ACE or MI-SMF Algorithms are used in any publication or presentation, the following reference must be cited:
 A. Zare, C. Jiao, T. Glenn, "Multiple Instance Hyperspectral Target Characterization," IEEE Trans. on Pattern Analysis and Machine Intelligence, To Appear.
 
+Python Implementation by:
+7/2018 - John Henning
+10/2018 - Yutai Zhou
+
 The function to run either MI-SMF or MI-ACE:
 
 opt_target, opt_obj_val, b_mu, sig_inv_half, init_t = mi_target(data_bags, labels, parameters)
@@ -32,7 +36,7 @@ Outputs:
 Files explanation:
 Latest Revision: Oct. 2018
 
-demo_simple_example.py: Demo script to run MI-SMF and MI-ACE on simulated Hyperspectral Data
+- demo_simple_example.py: Demo script to run MI-SMF and MI-ACE on simulated Hyperspectral Data
 - detectors.py: SMF and ACE Target Detector Code
 - LICENSE: License for this code
 - mi_target.py: Main MI-SMF and MI-ACE function and implementation
