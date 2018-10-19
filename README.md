@@ -5,7 +5,9 @@ NOTE: If MI-ACE or MI-SMF Algorithms are used in any publication or presentation
 A. Zare, C. Jiao, T. Glenn, "Multiple Instance Hyperspectral Target Characterization," IEEE Trans. on Pattern Analysis and Machine Intelligence, To Appear.
 
 Python Implementation by:
+
 7/2018 - John Henning
+
 10/2018 - Yutai Zhou
 
 The function to run either MI-SMF or MI-ACE:
