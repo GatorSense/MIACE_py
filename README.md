@@ -6,7 +6,7 @@ A. Zare, C. Jiao and T. Glenn, "Discriminative Multiple Instance Hyperspectral T
 doi: 10.1109/TPAMI.2017.2756632
 
 NOTE: If this code is used in any publication or presentation, the following reference must be cited: 
-
+[![DOI](https://zenodo.org/badge/135312072.svg)](https://zenodo.org/badge/latestdoi/135312072)
 
 Python Implementation by:
 7/2018 - John Henning
