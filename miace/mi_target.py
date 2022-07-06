@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.cluster import KMeans
 import copy
+import pickle as pkl
 
 # default parameters for mi_target
 default_parameters = {
@@ -24,7 +25,7 @@ default_parameters = {
 }
 
 
-def mi_target(data_bags, labels, parameters=default_parameters):
+def mi_target(data_bags, labels, fname, parameters=default_parameters):
     """
     MIACE: Multiple Instance Adaptive Cosine Estimator
 	MISMF: Multiple Instance Spectral Matched Filter Demo
@@ -54,6 +55,7 @@ def mi_target(data_bags, labels, parameters=default_parameters):
     data = np.vstack([data[i] for i in range(data.shape[0])])
     b_mu = np.mean(data, axis=0) # this is the mean of pixels for a given band, (D,)
     b_cov = np.cov(data.T)
+    b_cov = b_cov + 0.001*np.eye(b_cov.shape[0])
 
     # Whitening
     print('Whitening...')
@@ -66,6 +68,7 @@ def mi_target(data_bags, labels, parameters=default_parameters):
 
     # Undo Whitening
     opt_target = undo_whitening(opt_target, s, v)
+
     init_t = undo_whitening(init_t, s, v)
     return opt_target, opt_obj_val, b_mu, sig_inv_half, init_t
 
@@ -80,7 +83,7 @@ def train_target_signature(whitened_data, labels, parameters, num_pos_bags):
     neg_databags = whitened_data[neg_labels]
 
     init = init_function(parameters['init_type'])
-    print(f'Initializing with {init.__name__}...')
+    print('Initializing with {init.__name__}...')
 
     init_t, opt_obj_val, pos_bags_max = init(
         pos_databags, neg_databags, parameters)
@@ -199,7 +202,7 @@ def kmeans_init(pos_databags, neg_databags, parameters):
         k_means = KMeans(n_clusters=min(len(pos_data), parameters['init_k']), max_iter=parameters['max_iter'])
         C = k_means.fit(pos_data)
 
-    temp_obj_val = [None] * len(C.labels_)
+    temp_obj_val = [None] * C.n_clusters
 
     # Loop through cluster centers
     for i, centroid in enumerate(C.cluster_centers_):
@@ -238,7 +241,7 @@ def whiten_data(b_cov, data_bags, b_mu, parameters=default_parameters):
         whitened_data = np.divide(m_scale, denom)
 
     return whitened_data, sig_inv_half, s, v
-
+    
 
 def undo_whitening(whitened_data, s, v):
     s_sqrt = np.sqrt(s)*np.eye(s.shape[0])
