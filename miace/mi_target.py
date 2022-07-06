@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.cluster import KMeans
 import copy
-import pickle as pkl
 
 # default parameters for mi_target
 default_parameters = {
@@ -25,7 +24,7 @@ default_parameters = {
 }
 
 
-def mi_target(data_bags, labels, fname, parameters=default_parameters):
+def mi_target(data_bags, labels, parameters=default_parameters):
     """
     MIACE: Multiple Instance Adaptive Cosine Estimator
 	MISMF: Multiple Instance Spectral Matched Filter Demo
